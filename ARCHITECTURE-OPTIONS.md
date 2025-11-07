@@ -1,14 +1,14 @@
 # Data Migration Architecture Options
 
 ## Project Overview
-This document outlines three architectural approaches for migrating data from on-premises SQLite to AWS Aurora PostgreSQL. The solution must support incremental data migration to run weekly for 6 months during the parallel operation period.
+This document outlines three architectural approaches for migrating data from on-premises SQLite to AWS DynamoDB. The solution must support incremental data migration to run weekly for 6 months during the parallel operation period.
 
 ## Requirements
 - **Source**: SQLite (on-premises)
-- **Target**: AWS Aurora PostgreSQL (cloud)
+- **Target**: AWS DynamoDB (cloud)
 - **Duration**: 6 months of parallel operation
 - **Frequency**: Weekly incremental migrations
-- **Capability**: Handle schema differences between SQLite and PostgreSQL
+- **Capability**: Handle schema differences between SQLite and DynamoDB
 - **Reliability**: Ensure data consistency and handle failures gracefully
 
 ---
@@ -37,7 +37,7 @@ Leverage AWS Database Migration Service (DMS) as the core migration engine with 
 ### Advantages
 - **Managed Service**: AWS handles infrastructure scaling and maintenance
 - **Built-in CDC**: Change Data Capture for incremental migrations
-- **Schema Conversion**: Automatic handling of SQLite to PostgreSQL differences
+- **Schema Conversion**: Automatic handling of SQLite to DynamoDB differences
 - **Monitoring**: Comprehensive AWS-native monitoring
 - **Security**: VPC endpoints and IAM-based access control
 
@@ -62,7 +62,7 @@ Build a custom ETL pipeline using Python with simple deployment for flexibility 
 ### Components
 - **Python ETL Application**: Custom migration logic using SQLAlchemy/Pandas
 - **Virtual Environment**: Isolated Python environment for dependencies
-- **PostgreSQL Staging**: Temporary staging tables for data validation
+- **DynamoDB Staging**: Temporary staging tables for data validation
 - **Cron Job**: Simple scheduling mechanism on Linux/Unix systems
 - **SQLite**: Local state management and job logging
 - **File-based Logging**: Simple monitoring and alerting via log files
@@ -73,7 +73,7 @@ Build a custom ETL pipeline using Python with simple deployment for flexibility 
 2. **Change Detection**: Query SQLite for changes since last migration
 3. **Data Extraction**: Extract changed records with proper batching
 4. **Data Transformation**: Handle schema mapping and data type conversions
-5. **Data Loading**: Upsert data into Aurora PostgreSQL
+5. **Data Loading**: Upsert data into DynamoDB
 6. **State Management**: Update migration timestamps and logs
 7. **Validation**: Compare record counts and checksums
 
@@ -83,14 +83,14 @@ Build a custom ETL pipeline using Python with simple deployment for flexibility 
 class IncrementalMigrator:
     def __init__(self, config):
         self.sqlite_conn = create_sqlite_connection(config)
-        self.postgres_conn = create_postgres_connection(config)
+        self.dynamodb_conn = create_dynamodb_connection(config)
         self.last_migration_time = get_last_migration_timestamp()
     
     def migrate_table(self, table_name):
         # Extract changes since last migration
         changes = self.extract_changes(table_name, self.last_migration_time)
         
-        # Transform data for PostgreSQL
+        # Transform data for DynamoDB
         transformed_data = self.transform_data(changes)
         
         # Load into target with conflict resolution
@@ -132,7 +132,7 @@ Combine the best of both worlds using Apache Airflow for orchestration with plug
   - AWS DMS for large tables
   - Custom Python scripts for complex transformations
   - Direct SQL for simple table copies
-- **Amazon RDS/Aurora**: Airflow metadata database
+- **Amazon RDS**: Airflow metadata database
 - **Amazon S3**: Data lake for staging and backups
 - **Amazon EC2**: Virtual machine task execution
 - **Amazon SNS**: Notifications and alerting

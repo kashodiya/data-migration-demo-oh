@@ -2,7 +2,7 @@
 # Data Migration Architecture
 
 ## Overview
-This document describes the chosen architecture for migrating data from on-premises SQLite to AWS Aurora PostgreSQL. The solution implements a custom Python ETL pipeline designed for incremental data migration during a 6-month parallel operation period.
+This document describes the chosen architecture for migrating data from on-premises SQLite to AWS DynamoDB. The solution implements a custom Python ETL pipeline designed for incremental data migration during a 6-month parallel operation period.
 
 ## Architecture: Custom Python ETL Pipeline
 
@@ -17,7 +17,7 @@ A custom ETL pipeline built in Python that provides complete control over the mi
 - **Features**:
   - Database connectivity management
   - Change detection and incremental processing
-  - Schema mapping between SQLite and PostgreSQL
+  - Schema mapping between SQLite and DynamoDB
   - Data type conversion and validation
   - Error handling and recovery mechanisms
 
@@ -29,8 +29,8 @@ A custom ETL pipeline built in Python that provides complete control over the mi
   - Ensures consistent execution environment
   - Easy deployment across different systems
 
-#### 3. PostgreSQL Staging Area
-- **Technology**: Temporary tables in Aurora PostgreSQL
+#### 3. DynamoDB Staging Area
+- **Technology**: Temporary tables in DynamoDB
 - **Purpose**: Data validation and integrity checks
 - **Features**:
   - Staging tables for each source table
@@ -65,7 +65,7 @@ A custom ETL pipeline built in Python that provides complete control over the mi
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
-│   SQLite        │    │  Python ETL      │    │  Aurora PostgreSQL  │
+│   SQLite        │    │  Python ETL      │    │  AWS DynamoDB       │
 │   (On-premises) │    │  Pipeline        │    │  (AWS Cloud)        │
 │                 │    │                  │    │                     │
 │  ┌─────────────┐│    │ ┌──────────────┐ │    │ ┌─────────────────┐ │
@@ -104,13 +104,13 @@ A custom ETL pipeline built in Python that provides complete control over the mi
 - Log extraction metrics and any data anomalies
 
 #### 4. Data Transformation Phase
-- Convert SQLite data types to PostgreSQL equivalents
+- Convert SQLite data types to DynamoDB equivalents
 - Handle character encoding differences (latin1 to UTF-8)
 - Apply business logic transformations as configured
 - Validate transformed data against target schema constraints
 
 #### 5. Data Loading Phase
-- Create staging tables in Aurora PostgreSQL
+- Create staging tables in DynamoDB
 - Load transformed data into staging tables
 - Perform data validation and integrity checks
 - Execute UPSERT operations to merge data into target tables
@@ -135,7 +135,7 @@ A custom ETL pipeline built in Python that provides complete control over the mi
 class IncrementalMigrator:
     def __init__(self, config):
         self.sqlite_conn = self.create_sqlite_connection(config)
-        self.postgres_conn = self.create_postgres_connection(config)
+        self.dynamodb_conn = self.create_dynamodb_connection(config)
         self.state_db = sqlite3.connect('migration_state.db')
         self.logger = self.setup_logging()
     
@@ -148,7 +148,7 @@ class IncrementalMigrator:
             changes = self.extract_changes(table_name, last_migration)
             
             if not changes.empty:
-                # Transform data for PostgreSQL
+                # Transform data for DynamoDB
                 transformed_data = self.transform_data(table_name, changes)
                 
                 # Load into staging and then target
@@ -188,12 +188,11 @@ class IncrementalMigrator:
 sqlite:
   database_path: ${SQLITE_DATABASE_PATH}
 
-postgresql:
-  host: ${POSTGRES_HOST}
-  port: ${POSTGRES_PORT}
-  database: ${POSTGRES_DATABASE}
-  username: ${POSTGRES_USERNAME}
-  password: ${POSTGRES_PASSWORD}
+dynamodb:
+  region: ${AWS_REGION}
+  access_key_id: ${AWS_ACCESS_KEY_ID}
+  secret_access_key: ${AWS_SECRET_ACCESS_KEY}
+  endpoint_url: ${DYNAMODB_ENDPOINT_URL}
 ```
 
 #### Table Mapping Configuration
