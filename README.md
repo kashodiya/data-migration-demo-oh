@@ -45,6 +45,14 @@ The solution uses a custom Python ETL pipeline with the following components:
 - ✅ **Minimal Dependencies**: Uses standard Python libraries
 - ✅ **Quick Start**: No complex infrastructure setup required
 
+## Database Schema
+
+The project uses the Chinook sample database, which represents a digital media store with tables for artists, albums, tracks, customers, and sales data.
+
+![Chinook Database ER Diagram](chinook-er-diagram.png)
+
+*Database Entity-Relationship diagram showing the complete schema structure and relationships between tables.*
+
 ## Documentation
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) - Detailed technical architecture and implementation
