@@ -37,7 +37,7 @@ class DynamoDBManager:
             # Create table definition
             table_definition = {
                 'TableName': table_name,
-                'BillingMode': schema.get('billing_mode', 'ON_DEMAND'),
+                'BillingMode': schema.get('billing_mode', 'PAY_PER_REQUEST'),
                 'KeySchema': [
                     {'AttributeName': 'PK', 'KeyType': 'HASH'},
                     {'AttributeName': 'SK', 'KeyType': 'RANGE'}
@@ -82,10 +82,8 @@ class DynamoDBManager:
                             'AttributeType': 'S'
                         })
                 
-                # Set billing mode for GSI
-                if table_definition['BillingMode'] == 'ON_DEMAND':
-                    gsi_definition['BillingMode'] = 'ON_DEMAND'
-                else:
+                # Set throughput for GSI (BillingMode is not valid for GSI)
+                if table_definition['BillingMode'] != 'PAY_PER_REQUEST':
                     gsi_definition['ProvisionedThroughput'] = {
                         'ReadCapacityUnits': 5,
                         'WriteCapacityUnits': 5
@@ -97,7 +95,7 @@ class DynamoDBManager:
                 table_definition['GlobalSecondaryIndexes'] = gsi_list
             
             # Set provisioned throughput if not on-demand
-            if table_definition['BillingMode'] != 'ON_DEMAND':
+            if table_definition['BillingMode'] != 'PAY_PER_REQUEST':
                 table_definition['ProvisionedThroughput'] = {
                     'ReadCapacityUnits': 5,
                     'WriteCapacityUnits': 5

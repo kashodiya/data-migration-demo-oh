@@ -26,7 +26,7 @@ class ConfigManager:
             },
             'table_schemas': {
                 'MusicCatalog': {
-                    'billing_mode': 'ON_DEMAND',
+                    'billing_mode': 'PAY_PER_REQUEST',
                     'global_secondary_indexes': [
                         {
                             'index_name': 'GSI1-NameSearch',
@@ -39,7 +39,7 @@ class ConfigManager:
                     ]
                 },
                 'CustomerOrders': {
-                    'billing_mode': 'ON_DEMAND',
+                    'billing_mode': 'PAY_PER_REQUEST',
                     'global_secondary_indexes': [
                         {
                             'index_name': 'GSI1-EmailSearch',
@@ -48,11 +48,11 @@ class ConfigManager:
                     ]
                 },
                 'Playlists': {
-                    'billing_mode': 'ON_DEMAND',
+                    'billing_mode': 'PAY_PER_REQUEST',
                     'global_secondary_indexes': []
                 },
                 'EmployeeManagement': {
-                    'billing_mode': 'ON_DEMAND',
+                    'billing_mode': 'PAY_PER_REQUEST',
                     'global_secondary_indexes': []
                 }
             }
