@@ -26,6 +26,7 @@ MANIFEST
 migration-tool/migration_config.json
 migration-tool/migration_state.json
 migration-tool/__pycache__/
+migration-tool/reports/
 
 # Virtual environments
 .env

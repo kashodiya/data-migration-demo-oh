@@ -13,6 +13,7 @@ from botocore.exceptions import ClientError, BotoCoreError
 
 from data_transformers import DataTransformers
 from dynamodb_manager import DynamoDBManager
+from html_report_generator import HTMLReportGenerator
 
 
 class MigrationEngine:
@@ -24,6 +25,17 @@ class MigrationEngine:
         self.sqlite_conn = None
         self.dynamodb_manager = None
         self.transformers = DataTransformers()
+        self.report_generator = HTMLReportGenerator()
+        self.migration_data = {
+            'migration_id': f"migration_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            'start_time': None,
+            'end_time': None,
+            'summary': {},
+            'tables': {},
+            'timeline': [],
+            'errors': [],
+            'validation': {}
+        }
         
         # Initialize connections
         self._initialize_connections()
@@ -48,6 +60,8 @@ class MigrationEngine:
         """Run the complete migration process"""
         try:
             print("Starting migration process...")
+            self._log_timeline("Migration process started")
+            self.migration_data['start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             self.state_manager.start_migration()
             
             # Create DynamoDB tables if they don't exist
@@ -59,26 +73,60 @@ class MigrationEngine:
                 'MusicCatalog', 'CustomerOrders', 'Playlists', 'EmployeeManagement'
             ]
             
+            # Initialize table data in migration report
+            for table_name in tables_to_migrate:
+                self.migration_data['tables'][table_name] = {
+                    'status': 'not_started',
+                    'records_migrated': 0,
+                    'total_records': 0,
+                    'start_time': None,
+                    'end_time': None
+                }
+            
             # Migrate each table
             for table_name in tables_to_migrate:
                 if not self.state_manager.is_table_completed(table_name):
                     print(f"\nMigrating {table_name}...")
+                    self._log_timeline(f"Started migrating {table_name}")
+                    self.migration_data['tables'][table_name]['status'] = 'in_progress'
+                    self.migration_data['tables'][table_name]['start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    
                     success = self._migrate_table(table_name)
                     if not success:
+                        self.migration_data['tables'][table_name]['status'] = 'failed'
+                        self._log_error(f"Failed to migrate {table_name}", table_name)
                         self.state_manager.fail_migration(f"Failed to migrate {table_name}")
                         return False
+                    else:
+                        self.migration_data['tables'][table_name]['status'] = 'completed'
+                        self.migration_data['tables'][table_name]['end_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        self._log_timeline(f"Completed migrating {table_name}")
                 else:
                     print(f"\n{table_name} already completed, skipping...")
+                    self.migration_data['tables'][table_name]['status'] = 'completed'
+                    self._log_timeline(f"Skipped {table_name} (already completed)")
             
             # Complete migration
             self.state_manager.complete_migration()
-            print("\nMigration completed successfully!")
+            self.migration_data['end_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            self._log_timeline("Migration process completed successfully")
+            
+            # Generate HTML report
+            report_path = self._generate_migration_report()
+            print(f"\nMigration completed successfully!")
+            print(f"HTML report generated: {report_path}")
             return True
             
         except Exception as e:
             error_msg = f"Migration failed: {str(e)}"
             print(error_msg)
+            self._log_error(error_msg)
             self.state_manager.fail_migration(error_msg)
+            self.migration_data['end_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            # Generate report even for failed migrations
+            report_path = self._generate_migration_report()
+            print(f"Migration report (with errors): {report_path}")
             return False
         finally:
             if self.sqlite_conn:
@@ -159,6 +207,9 @@ class MigrationEngine:
         counts = self._get_music_catalog_counts()
         total_records = counts['artists'] + counts['albums'] + counts['tracks']
         
+        # Update migration data for HTML report
+        self._update_table_progress(table_name, 0, total_records)
+        
         self.state_manager.start_table_migration(table_name, total_records)
         
         # Update entity counts
@@ -170,17 +221,25 @@ class MigrationEngine:
         last_album_id = self.state_manager.get_last_processed_id(table_name, 'albums')
         last_track_id = self.state_manager.get_last_processed_id(table_name, 'tracks')
         
+        processed_records = 0
+        
         # Migrate artists
         if not self._migrate_artists(physical_table, last_artist_id):
             return False
+        processed_records += counts['artists']
+        self._update_table_progress(table_name, processed_records, total_records)
         
         # Migrate albums
         if not self._migrate_albums(physical_table, last_album_id):
             return False
+        processed_records += counts['albums']
+        self._update_table_progress(table_name, processed_records, total_records)
         
         # Migrate tracks
         if not self._migrate_tracks(physical_table, last_track_id):
             return False
+        processed_records += counts['tracks']
+        self._update_table_progress(table_name, processed_records, total_records)
         
         self.state_manager.complete_table_migration(table_name)
         return True
@@ -616,5 +675,68 @@ class MigrationEngine:
             return self._get_table_count('Employee')
         else:
             return 0
+    
+    def _log_timeline(self, message):
+        """Log a timeline event"""
+        self.migration_data['timeline'].append({
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'message': message
+        })
+    
+    def _log_error(self, message, table=None):
+        """Log an error"""
+        self.migration_data['errors'].append({
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'message': message,
+            'table': table or 'General'
+        })
+    
+    def _update_table_progress(self, table_name, records_migrated, total_records):
+        """Update table progress in migration data"""
+        if table_name in self.migration_data['tables']:
+            self.migration_data['tables'][table_name]['records_migrated'] = records_migrated
+            self.migration_data['tables'][table_name]['total_records'] = total_records
+    
+    def _generate_migration_report(self):
+        """Generate HTML migration report"""
+        # Calculate summary data
+        total_tables = len(self.migration_data['tables'])
+        completed_tables = sum(1 for table in self.migration_data['tables'].values() if table['status'] == 'completed')
+        total_records = sum(table['records_migrated'] for table in self.migration_data['tables'].values())
+        
+        # Calculate duration
+        duration = "Unknown"
+        if self.migration_data['start_time'] and self.migration_data['end_time']:
+            start = datetime.strptime(self.migration_data['start_time'], '%Y-%m-%d %H:%M:%S')
+            end = datetime.strptime(self.migration_data['end_time'], '%Y-%m-%d %H:%M:%S')
+            duration_seconds = (end - start).total_seconds()
+            duration = f"{duration_seconds:.1f} seconds"
+        
+        # Determine overall status
+        if completed_tables == total_tables and len(self.migration_data['errors']) == 0:
+            status = "Completed Successfully"
+        elif len(self.migration_data['errors']) > 0:
+            status = "Completed with Errors"
+        else:
+            status = "In Progress"
+        
+        self.migration_data['summary'] = {
+            'status': status,
+            'total_tables': total_tables,
+            'completed_tables': completed_tables,
+            'total_records': total_records,
+            'duration': duration,
+            'error_count': len(self.migration_data['errors'])
+        }
+        
+        # Run validation if migration completed successfully
+        if status == "Completed Successfully":
+            try:
+                self.migration_data['validation'] = self.validate_migration()
+            except Exception as e:
+                self._log_error(f"Validation failed: {str(e)}")
+        
+        # Generate the report
+        return self.report_generator.generate_migration_report(self.migration_data)
 
 

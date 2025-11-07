@@ -67,6 +67,7 @@ Examples:
     # Reset command
     reset_parser = subparsers.add_parser('reset', help='Reset migration state')
     reset_parser.add_argument('--confirm', action='store_true', help='Confirm reset operation')
+    reset_parser.add_argument('--force', action='store_true', help='Force reset without confirmation')
     
     args = parser.parse_args()
     
@@ -262,9 +263,9 @@ def handle_validate(args, config_manager, state_manager):
 
 def handle_reset(args, state_manager):
     """Reset migration state"""
-    if not args.confirm:
+    if not args.confirm and not args.force:
         print("Warning: This will reset all migration progress.")
-        print("Use --confirm flag to proceed.")
+        print("Use --confirm or --force flag to proceed.")
         return 1
     
     state_manager.reset()
