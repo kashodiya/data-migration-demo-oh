@@ -234,10 +234,31 @@ class DynamoDBManager:
         return True
     
     def get_table_item_count(self, table_name):
-        """Get approximate item count for a table"""
+        """Get accurate item count for a table using scan"""
         try:
-            response = self.dynamodb.describe_table(TableName=table_name)
-            return response['Table']['ItemCount']
+            total_count = 0
+            last_evaluated_key = None
+            
+            while True:
+                scan_kwargs = {
+                    'TableName': table_name,
+                    'Select': 'COUNT'
+                }
+                
+                if last_evaluated_key:
+                    scan_kwargs['ExclusiveStartKey'] = last_evaluated_key
+                
+                response = self.dynamodb.scan(**scan_kwargs)
+                total_count += response['Count']
+                
+                # Check if there are more items to scan
+                if 'LastEvaluatedKey' not in response:
+                    break
+                    
+                last_evaluated_key = response['LastEvaluatedKey']
+            
+            return total_count
+            
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 return 0

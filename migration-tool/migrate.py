@@ -59,6 +59,7 @@ Examples:
     
     # Status command
     status_parser = subparsers.add_parser('status', help='Show migration status')
+    status_parser.add_argument('--live', action='store_true', help='Get live counts from DynamoDB (slower but accurate)')
     
     # Validate command
     validate_parser = subparsers.add_parser('validate', help='Validate migrated data')
@@ -87,7 +88,7 @@ Examples:
         elif args.command == 'resume':
             return handle_resume(config_manager, state_manager)
         elif args.command == 'status':
-            return handle_status(state_manager)
+            return handle_status(args, config_manager, state_manager)
         elif args.command == 'validate':
             return handle_validate(args, config_manager, state_manager)
         elif args.command == 'reset':
@@ -202,7 +203,7 @@ def handle_resume(config_manager, state_manager):
         return 1
 
 
-def handle_status(state_manager):
+def handle_status(args, config_manager, state_manager):
     """Show migration status"""
     state = state_manager.get_state()
     
@@ -213,16 +214,55 @@ def handle_status(state_manager):
     
     if 'tables' in state:
         print("\nTable Progress:")
-        for table_name, table_state in state['tables'].items():
-            status = table_state.get('status', 'not_started')
-            records = table_state.get('records_migrated', 0)
-            total = table_state.get('total_records', 0)
-            
-            if total > 0:
-                percentage = (records / total) * 100
-                print(f"  {table_name}: {status} ({records}/{total} records, {percentage:.1f}%)")
-            else:
-                print(f"  {table_name}: {status}")
+        
+        # If --live flag is used, get real-time counts from DynamoDB
+        if args.live:
+            try:
+                config = config_manager.load_config()
+                if config:
+                    from dynamodb_manager import DynamoDBManager
+                    manager = DynamoDBManager(region=config['aws_region'])
+                    print("  (Getting live counts from DynamoDB...)")
+                    
+                    for table_name, table_state in state['tables'].items():
+                        status = table_state.get('status', 'not_started')
+                        total = table_state.get('total_records', 0)
+                        
+                        # Get live count from DynamoDB
+                        physical_name = config['target_tables'].get(table_name)
+                        if physical_name:
+                            try:
+                                live_count = manager.get_table_item_count(physical_name)
+                                if total > 0:
+                                    percentage = (live_count / total) * 100
+                                    print(f"  {table_name}: {status} ({live_count}/{total} records, {percentage:.1f}%) [LIVE]")
+                                else:
+                                    print(f"  {table_name}: {status} ({live_count} records) [LIVE]")
+                            except Exception as e:
+                                print(f"  {table_name}: {status} (Error getting live count: {e})")
+                        else:
+                            print(f"  {table_name}: {status} (Table mapping not found)")
+                else:
+                    print("  Error: No configuration found for live status")
+                    return 1
+            except Exception as e:
+                print(f"  Error getting live status: {e}")
+                return 1
+        else:
+            # Use cached counts from state file
+            for table_name, table_state in state['tables'].items():
+                status = table_state.get('status', 'not_started')
+                records = table_state.get('records_migrated', 0)
+                total = table_state.get('total_records', 0)
+                
+                if total > 0:
+                    percentage = (records / total) * 100
+                    print(f"  {table_name}: {status} ({records}/{total} records, {percentage:.1f}%) [CACHED]")
+                else:
+                    print(f"  {table_name}: {status} [CACHED]")
+    
+    if not args.live:
+        print("\nNote: Use --live flag to get real-time counts from DynamoDB")
     
     return 0
 
