@@ -2,7 +2,7 @@
 # Data Migration Architecture
 
 ## Overview
-This document describes the chosen architecture for migrating data from on-premises MySQL to AWS Aurora PostgreSQL. The solution implements a custom Python ETL pipeline designed for incremental data migration during a 6-month parallel operation period.
+This document describes the chosen architecture for migrating data from on-premises SQLite to AWS Aurora PostgreSQL. The solution implements a custom Python ETL pipeline designed for incremental data migration during a 6-month parallel operation period.
 
 ## Architecture: Custom Python ETL Pipeline
 
@@ -17,7 +17,7 @@ A custom ETL pipeline built in Python that provides complete control over the mi
 - **Features**:
   - Database connectivity management
   - Change detection and incremental processing
-  - Schema mapping between MySQL and PostgreSQL
+  - Schema mapping between SQLite and PostgreSQL
   - Data type conversion and validation
   - Error handling and recovery mechanisms
 
@@ -65,7 +65,7 @@ A custom ETL pipeline built in Python that provides complete control over the mi
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
-│   MySQL         │    │  Python ETL      │    │  Aurora PostgreSQL  │
+│   SQLite        │    │  Python ETL      │    │  Aurora PostgreSQL  │
 │   (On-premises) │    │  Pipeline        │    │  (AWS Cloud)        │
 │                 │    │                  │    │                     │
 │  ┌─────────────┐│    │ ┌──────────────┐ │    │ ┌─────────────────┐ │
@@ -93,7 +93,7 @@ A custom ETL pipeline built in Python that provides complete control over the mi
 
 #### 2. Change Detection Phase
 - Query SQLite state database for last migration timestamp per table
-- Execute incremental queries on MySQL using timestamp-based filtering
+- Execute incremental queries on SQLite using timestamp-based filtering
 - Identify new, updated, and deleted records since last migration
 - Handle tables without timestamp columns using full comparison
 
@@ -104,7 +104,7 @@ A custom ETL pipeline built in Python that provides complete control over the mi
 - Log extraction metrics and any data anomalies
 
 #### 4. Data Transformation Phase
-- Convert MySQL data types to PostgreSQL equivalents
+- Convert SQLite data types to PostgreSQL equivalents
 - Handle character encoding differences (latin1 to UTF-8)
 - Apply business logic transformations as configured
 - Validate transformed data against target schema constraints
@@ -134,7 +134,7 @@ A custom ETL pipeline built in Python that provides complete control over the mi
 ```python
 class IncrementalMigrator:
     def __init__(self, config):
-        self.mysql_conn = self.create_mysql_connection(config)
+        self.sqlite_conn = self.create_sqlite_connection(config)
         self.postgres_conn = self.create_postgres_connection(config)
         self.state_db = sqlite3.connect('migration_state.db')
         self.logger = self.setup_logging()
@@ -185,12 +185,8 @@ class IncrementalMigrator:
 #### Database Connections
 ```yaml
 # config/database.yaml
-mysql:
-  host: ${MYSQL_HOST}
-  port: ${MYSQL_PORT}
-  database: ${MYSQL_DATABASE}
-  username: ${MYSQL_USERNAME}
-  password: ${MYSQL_PASSWORD}
+sqlite:
+  database_path: ${SQLITE_DATABASE_PATH}
 
 postgresql:
   host: ${POSTGRES_HOST}

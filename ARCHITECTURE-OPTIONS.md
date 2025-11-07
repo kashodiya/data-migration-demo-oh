@@ -1,14 +1,14 @@
 # Data Migration Architecture Options
 
 ## Project Overview
-This document outlines three architectural approaches for migrating data from on-premises MySQL to AWS Aurora PostgreSQL. The solution must support incremental data migration to run weekly for 6 months during the parallel operation period.
+This document outlines three architectural approaches for migrating data from on-premises SQLite to AWS Aurora PostgreSQL. The solution must support incremental data migration to run weekly for 6 months during the parallel operation period.
 
 ## Requirements
-- **Source**: MySQL (on-premises)
+- **Source**: SQLite (on-premises)
 - **Target**: AWS Aurora PostgreSQL (cloud)
 - **Duration**: 6 months of parallel operation
 - **Frequency**: Weekly incremental migrations
-- **Capability**: Handle schema differences between MySQL and PostgreSQL
+- **Capability**: Handle schema differences between SQLite and PostgreSQL
 - **Reliability**: Ensure data consistency and handle failures gracefully
 
 ---
@@ -37,7 +37,7 @@ Leverage AWS Database Migration Service (DMS) as the core migration engine with 
 ### Advantages
 - **Managed Service**: AWS handles infrastructure scaling and maintenance
 - **Built-in CDC**: Change Data Capture for incremental migrations
-- **Schema Conversion**: Automatic handling of MySQL to PostgreSQL differences
+- **Schema Conversion**: Automatic handling of SQLite to PostgreSQL differences
 - **Monitoring**: Comprehensive AWS-native monitoring
 - **Security**: VPC endpoints and IAM-based access control
 
@@ -70,7 +70,7 @@ Build a custom ETL pipeline using Python with simple deployment for flexibility 
 
 ### Architecture Flow
 1. **Configuration**: Load database connections and migration rules
-2. **Change Detection**: Query MySQL for changes since last migration
+2. **Change Detection**: Query SQLite for changes since last migration
 3. **Data Extraction**: Extract changed records with proper batching
 4. **Data Transformation**: Handle schema mapping and data type conversions
 5. **Data Loading**: Upsert data into Aurora PostgreSQL
@@ -82,7 +82,7 @@ Build a custom ETL pipeline using Python with simple deployment for flexibility 
 # Example migration workflow
 class IncrementalMigrator:
     def __init__(self, config):
-        self.mysql_conn = create_mysql_connection(config)
+        self.sqlite_conn = create_sqlite_connection(config)
         self.postgres_conn = create_postgres_connection(config)
         self.last_migration_time = get_last_migration_timestamp()
     

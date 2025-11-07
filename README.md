@@ -1,6 +1,6 @@
-# MySQL to PostgreSQL Data Migration Project
+# SQLite to PostgreSQL Data Migration Project
 
-A simple yet effective data migration solution for migrating from on-premises MySQL to AWS Aurora PostgreSQL with incremental synchronization capabilities.
+A simple yet effective data migration solution for migrating from on-premises SQLite to AWS Aurora PostgreSQL with incremental synchronization capabilities.
 
 ## Project Overview
 
@@ -52,7 +52,7 @@ The solution uses a custom Python ETL pipeline with the following components:
 
 ## Getting Started
 
-1. **Prerequisites**: Python 3.8+, MySQL client libraries, PostgreSQL client libraries
+1. **Prerequisites**: Python 3.8+, SQLite client libraries, PostgreSQL client libraries
 2. **Installation**: Clone repository and set up virtual environment
 3. **Configuration**: Configure database connections and table mappings
 4. **Testing**: Run initial migration test with sample data
@@ -61,7 +61,7 @@ The solution uses a custom Python ETL pipeline with the following components:
 ## Target Use Case
 
 Perfect for organizations needing to:
-- Migrate from MySQL to PostgreSQL during cloud transition
+- Migrate from SQLite to PostgreSQL during cloud transition
 - Maintain data synchronization during parallel system operation
 - Implement cost-effective migration without complex infrastructure
 - Retain full control over the migration process and logic
